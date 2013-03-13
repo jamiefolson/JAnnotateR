@@ -1,0 +1,59 @@
+apply plugin: 'java'
+apply plugin: 'rpackage'
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+configurations { 
+    annotations 
+}
+
+buildscript {
+  repositories {
+    mavenLocal()
+    mavenCentral()
+  }
+  dependencies {
+    classpath group: 'com.sonamine', name: 'gradle-plugin-r', version: '1.0-SNAPSHOT'
+  }
+}
+
+
+dependencies {
+    annotations gradleApi()
+    annotations 'com.sonamine:gradle-plugin-r:1.0-SNAPSHOT'
+    //annotations 'com.jfolson:jannotater-core:0.1-SNAPSHOT'
+    annotations localGroovy()
+    compile 'com.jfolson:jannotater-core:0.1-SNAPSHOT'
+	compile "org.rosuda.JRI:JRIEngine.jar:0.9-3"
+	compile "org.rosuda.JRI:JRI.jar:0.9-3"
+	compile "org.rosuda.JRI:REngine.jar:0.9-3"
+}
+
+sourceSets {
+	main {
+		
+	}
+    rjava {
+        java {
+            srcDir "src/main/java"
+        }
+    }
+}
+
+rpackage {
+  packageDir = 'pkg'
+  packageName = 'rsql'
+}
+
+compileRjavaJava {
+    destinationDir = project.file(project.rpackage.packageDir)
+    options.compilerArgs = ["-processor",
+    "com.jfolson.jannotater.AnnotateRProcessor"]
+    classpath += configurations.compile
+    classpath += configurations.annotations
+}
+
+

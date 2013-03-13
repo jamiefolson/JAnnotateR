@@ -1,0 +1,1 @@
+include 'jannotater-core', 'gradle-plugin-jannotater', 'jannotater-test'

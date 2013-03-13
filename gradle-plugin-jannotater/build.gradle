@@ -1,0 +1,18 @@
+apply plugin: 'groovy'
+apply plugin: 'maven'
+
+dependencies {
+    compile gradleApi()
+    compile 'com.jfolson:gradle-plugin-r:1.0-SNAPSHOT'
+    groovy localGroovy()
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    testCompile 'junit:junit:4.8.2'
+}
+

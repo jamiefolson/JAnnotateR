@@ -1,0 +1,19 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+
+project.description = 'Java Annotations to R Project'
+project.targetCompatibility = 1.7
+project.sourceCompatibility = 1.7
+
+repositories {
+  mavenCentral()
+  mavenLocal()
+}
+
+dependencies {
+  compile "net.sourceforge.collections:collections-generic:4.01"
+  compile "org.slf4j:slf4j-api:1.7.2"
+  compile "commons-io:commons-io:2.1"
+  testCompile "org.testng:testng:5.14"
+}
+
