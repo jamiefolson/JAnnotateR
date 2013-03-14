@@ -7,4 +7,5 @@ Author: Who wrote it
 Maintainer: Who to complain to <yourfault@somewhere.net>
 Description: More about what it does (maybe more than one line)
 License: What license is it under?
-Depends: R (>= 2.14.0), rJava, methods
+Depends: R (>= 2.14.0), rJava(>= 0.9-3), methods
+Suggests: testthat
