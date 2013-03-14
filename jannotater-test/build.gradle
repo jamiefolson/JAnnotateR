@@ -1,5 +1,20 @@
+//evaluationDependsOn(':gradle-plugin-jannotater')
+
+buildscript {
+	repositories {
+	  mavenLocal()
+	  mavenCentral()
+	}
+	dependencies {
+		classpath project(":gradle-plugin-jannotater")
+		//classpath 'com.jfolson:gradle-plugin-jannotater:0.1-SNAPSHOT'
+		//classpath 'com.jfolson:gradle-plugin-r:0.1-SNAPSHOT'
+	}
+}
+  
 apply plugin: 'java'
-apply plugin: 'rpackage'
+apply plugin: 'rjava'
+//apply plugin: 'rpackage'
 
 version = "0.1"
 repositories {
@@ -8,43 +23,12 @@ repositories {
 	flatDir(dirs: 'lib')
 }
 
-configurations { 
-    annotations 
-	rjava
-}
-
-buildscript {
-  repositories {
-    mavenLocal()
-    mavenCentral()
-  }
-  dependencies {
-    classpath 'com.jfolson:gradle-plugin-r:0.1-SNAPSHOT'
-  }
-}
-
-
 dependencies {
-    annotations gradleApi()
-    annotations 'com.jfolson:gradle-plugin-r:0.1-SNAPSHOT'
-    //annotations 'com.jfolson:jannotater-core:0.1-SNAPSHOT'
-    annotations localGroovy()
-    compile 'com.jfolson:jannotater-core:0.1-SNAPSHOT'
+    compile project(":jannotater-core")//'com.jfolson:jannotater-core:0.1-SNAPSHOT'
     rjava(project(":jannotater-test")){ transitive = true }
 	compile "org.rosuda.JRI:JRIEngine:0.9-3"
 	compile "org.rosuda.JRI:JRI:0.9-3"
 	compile "org.rosuda.JRI:REngine:0.9-3"
-}
-
-sourceSets {
-	main {
-		
-	}
-    rjava {
-        java {
-            srcDir "src/main/java"
-        }
-    }
 }
 
 rpackage {
@@ -52,25 +36,3 @@ rpackage {
   name = 'HelloWorld'
 }
 
-compileRjavaJava {
-    destinationDir = project.file(project.rpackage.buildDir)
-    options.compilerArgs = ["-processor",
-    "com.jfolson.jannotater.AnnotateRProcessor","-proc:only"]
-    classpath += configurations.compile
-    classpath += configurations.annotations
-}
-
-task getJars(type:Copy){
-	from configurations.rjava
-	into "${project.rpackage.srcDir}/inst/java"
-}
-
-task copyRPackageSource(type:Copy) {
-    dependsOn project.getJars
-	from project.rpackage.srcDir
-	into project.rpackage.buildDir
-} 
-
-project.roxygenize.rpackage.srcDir = rpackage.buildDir
-project.roxygenize.dependsOn project.copyRPackageSource
-project.roxygenize.dependsOn project.compileRjavaJava

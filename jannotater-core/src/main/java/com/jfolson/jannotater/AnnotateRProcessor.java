@@ -77,6 +77,7 @@ public class AnnotateRProcessor extends AbstractProcessor
 	 * 
 	 * This way, at least specialized classes will inherit the generic's methods.
 	 */
+	HashSet<TypeMirror> mTypesToExport = new HashSet<TypeMirror>();
 	HashSet<TypeMirror> mExportedTypes = new HashSet<TypeMirror>();
 	HashMap<TypeElement,List<ExecutableElement>> mExportedClassMethods = 
 			new HashMap<TypeElement,List<ExecutableElement>>();
@@ -122,7 +123,7 @@ public class AnnotateRProcessor extends AbstractProcessor
 		if (!annotations.isEmpty()){
 			//TypeElement rjavaAnnotationType = annotations.iterator().next();
 			elements = roundEnv.getElementsAnnotatedWith(RJava.class);
-			
+
 			// Collect methods
 			for (Element element : elements) {
 				if (!(element instanceof ExecutableElement)){
@@ -130,19 +131,17 @@ public class AnnotateRProcessor extends AbstractProcessor
 							"executables(e.g. constructors, methods), instead found: " + element);	
 				}
 				ExecutableElement d = (ExecutableElement)element;
+				this.mTypesToExport.add(element.getEnclosingElement().asType());
 				this.addClassMethod((TypeElement) element.getEnclosingElement(),d);
 			}
 			// Process classes
-			for (Element element : elements) {
+			/*for (Element element : elements) {
 				this.processType(element.getEnclosingElement().asType());
 				//logger.debug("Need to export caller type: " + element.getEnclosingElement().asType().toString());
-			}
-			
+			}*/
+
 			for (Element element : elements)
 			{
-				logger.debug("Element name: " + element.getSimpleName());
-				logger.debug("Element kind: " + element.getKind());
-				logger.debug("Element type: " + element.asType());
 				ExecutableElement d = (ExecutableElement)element;
 				if (d.getKind() == ElementKind.CONSTRUCTOR) {
 					continue; // Constructors have no return type
@@ -154,8 +153,12 @@ public class AnnotateRProcessor extends AbstractProcessor
 				}
 				if(this.isExportedType(returnType)){
 					logger.debug("Need to export return type: " + returnType);
-					this.processType(returnType);
+					this.mTypesToExport.add(returnType);
 				}
+			}
+
+			for (TypeMirror type : new ArrayList<TypeMirror>(this.mTypesToExport)){
+				this.processType(type);
 			}
 
 			// Generate necessary classes here.  There WILL ONLY EVER BE ONE ROUND.
@@ -165,6 +168,7 @@ public class AnnotateRProcessor extends AbstractProcessor
 			try {
 				Writer output;
 				output = this.getWriter("zzz.R");
+				RJavaUtils.writeLine(output, "#' @import rJava");
 				RJavaUtils.writeLine(output, ".onLoad <- function(libname,pkgname){");
 				RJavaUtils.writeLine(output, "\t.jpackage(pkgname, lib.loc = libname)");
 				RJavaUtils.writeLine(output, "}");
@@ -182,7 +186,8 @@ public class AnnotateRProcessor extends AbstractProcessor
 
 					// Define and export S4 classes
 					output = this.getWriter("0classes.R");
-					HashSet<TypeMirror> toExport = new HashSet<TypeMirror>(this.mExportedTypes);
+					RJavaUtils.writeLine(output, "require(rJava)");
+					HashSet<TypeMirror> toExport = new HashSet<TypeMirror>(this.mTypesToExport);
 					while(!toExport.isEmpty()){
 						this.writeClassExport(output,toExport,toExport.iterator().next());
 					}
@@ -201,7 +206,7 @@ public class AnnotateRProcessor extends AbstractProcessor
 
 	private boolean isExportedType(TypeMirror type,Element typeCls){
 		// Export this specific type
-		if (this.mExportedTypes.contains(type)){
+		if (this.mTypesToExport.contains(type)){
 			logger.debug("Found exported type: "+type);
 			return true;
 		}
@@ -226,17 +231,17 @@ public class AnnotateRProcessor extends AbstractProcessor
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
-	
+
 	private boolean isExportedElement(TypeElement typeCls){
 		return this.isExportedType(typeCls.asType(), typeCls);
 	}
 
 	private boolean isExportedType(TypeMirror type){
 		return this.isExportedType(type, 
-					this.mTypes.asElement(type));
+				this.mTypes.asElement(type));
 	}
 
 	private void processType(TypeMirror type){
@@ -252,20 +257,23 @@ public class AnnotateRProcessor extends AbstractProcessor
 			e.printStackTrace();
 			throw new RuntimeException("Error writing to file: "+e.getMessage());
 		}
-		this.processType(output, type);
+		this.processType(output, type, type);
+		this.mTypesToExport.add(type);
 		this.mExportedTypes.add(type);
 	}
-	private void processType(Writer output, TypeMirror type){
+	private void processType(Writer output, 
+			TypeMirror rootType,
+			TypeMirror type){
 		// Only process each class once
-		if (this.mExportedTypes.contains(type)){
+		/*if (this.mExportedTypes.contains(type)){
 			return;
-		}
+		}*/
 		TypeElement typeCls = (TypeElement) this.mTypes.asElement(type);
 		logger.debug("Entering type: " + type.toString());
 		for (TypeMirror ancestor : this.mTypes.directSupertypes(type)){
-			this.processType(output,ancestor);
+			this.processType(output,rootType,ancestor);
 		}
-		
+
 		if (this.mExportedClassMethods.containsKey(typeCls)){
 			logger.debug("Processing methods for type: " + type.toString());
 
@@ -276,16 +284,15 @@ public class AnnotateRProcessor extends AbstractProcessor
 						(ExecutableType) this.mTypes.asMemberOf(
 								(DeclaredType) type, 
 								element);
-				logger.debug("Element name: " + element.getSimpleName());
-				logger.debug("Element kind: " + element.getKind());
-				logger.debug("Element type: " + element.asType());
 
-				this.processDeclaration(element, 
-						type,
+				this.processDeclaration(output,
+						element, 
+						rootType,
 						elementType.getParameterTypes(),
 						elementType.getReturnType());
 			}
-			this.mExportedTypes.add(type);
+			//this.mTypesToExport.add(type);
+			//this.mExportedTypes.add(type);
 		}else {
 			logger.debug("No methods for type: " + typeCls.toString());
 		}
@@ -325,7 +332,7 @@ public class AnnotateRProcessor extends AbstractProcessor
 			// Currently exports both class and interface parents, since S4 allows multiple inheritance
 			// This is a little confusing, since ALL of the "contain"-ed R classes have an external jobjRef slot
 			// However, since they're all named the same, there shouldn't be any problems.
-			if (this.mExportedTypes.contains(next)){
+			if (this.mTypesToExport.contains(next)){
 				logger.debug("Adding parent : "+next.toString());
 				parents.add(next);
 				// Make sure it's exported first!
@@ -338,6 +345,8 @@ public class AnnotateRProcessor extends AbstractProcessor
 				ancestors.addAll(this.mTypes.directSupertypes(next));
 			}
 		}
+		RJavaUtils.writeLine(output, "#' @importClassesFrom rJava jobjRef");
+		RJavaUtils.writeLine(output, "#' @export");
 		RJavaUtils.writeLine(output, "setClass(\"" + type.toString() + "\",");
 		RJavaUtils.writeLine(output, "\tcontains=c(");
 		for (TypeMirror parent : parents){
@@ -390,13 +399,18 @@ public class AnnotateRProcessor extends AbstractProcessor
 	 * Actually visit a method declaration
 	 * @param execElem
 	 */
-	public void processDeclaration(ExecutableElement execElem, 
+	public void processDeclaration(Writer output, ExecutableElement execElem, 
 			TypeMirror callerType,
 			List<? extends TypeMirror> paramTypes,
 			TypeMirror returnType)
 	{
 		try
 		{
+			logger.debug("Element name: " + execElem.getSimpleName());
+			logger.debug("Element caller type: " + execElem.getEnclosingElement().asType());
+			logger.debug("Caller type: " + callerType);
+			logger.debug("Return type: " + returnType);
+
 			Set<Modifier> modifiers = execElem.getModifiers();
 
 			boolean isConstructor = false;
@@ -407,20 +421,26 @@ public class AnnotateRProcessor extends AbstractProcessor
 			if (modifiers.contains(Modifier.STATIC)) {
 				isStatic = true;
 			}
+			if (isStatic || isConstructor){
+				if (!execElem.getEnclosingElement().asType().equals(callerType)){
+					return;
+				}
+			}
 
 			//  Looks awkward, but lots of naming stuff to get
 			RJava annotation = execElem.getAnnotation(RJava.class);
 			String typeName = callerType.toString();
 			TypeElement typeElement = (TypeElement) this.mTypes.asElement(callerType);
 			String cannonicalTypeName = typeElement.toString();
+			String simpleTypeName = typeElement.getSimpleName().toString();
 			String simpleName = execElem.getSimpleName().toString();
 
 			// Figure out where to write output
-			String filename = getDeclarationFilename(execElem);
-			Writer output = getWriter(filename);
+			/*String filename = getDeclarationFilename(execElem);
+			Writer output = getWriter(filename+".R");
 			logger.debug("Writing " +cannonicalTypeName+
 					"." + simpleName + " to " + filename);
-
+			 */
 			if (isConstructor) { // constructor's have no "return type" so assign here
 				returnType = callerType;
 			}
@@ -431,7 +451,7 @@ public class AnnotateRProcessor extends AbstractProcessor
 				rName = simpleName;
 				// Prepend "new" to typeName for constructors? No, it's goofy
 				if (isConstructor) {
-					rName = typeName;
+					rName = simpleTypeName;
 				}
 			}
 
@@ -441,41 +461,47 @@ public class AnnotateRProcessor extends AbstractProcessor
 			if (isConstructor) {
 				// Constructor names *should be* already qualified (unless assigned poorly in the annotation) 
 				rQualifiedName = rName;
+			}else if (isStatic){
+				rQualifiedName = simpleTypeName+ "." + rName;
 			}
 			// Check for collisions
 			checkRNameCollisions(rName, typeName);
 
 			String javadoc = this.mElements.getDocComment(execElem);
-			if (javadoc == null) {
-				RJavaUtils.writeLine(output, "#' TODO:Function documentation");
-			} else {
-				RJavaUtils.writeLine(output, "#' " + javadoc.replaceAll(LINE_SEPARATOR, LINE_SEPARATOR+"#' "));
-				RJavaUtils.writeLine(output, "#' Previous documentation autogenerated from javadoc");
-			}
-			if (!isStatic && !isConstructor){
-				RJavaUtils.writeLine(output, "#' @param obj An rJava jobjRef of java type " + cannonicalTypeName + " to be operated on");
-			}
-			RJavaUtils.writeLine(output, "#' \t This may be, but is not required to be, an R S4 object of the same type");
+			// Export this once.  It should really be with the generic
+			if (execElem.getEnclosingElement().asType().equals(callerType)){
+				if (javadoc == null) {
+					RJavaUtils.writeLine(output, "#' TODO:Function documentation");
+				} else {
+					RJavaUtils.writeLine(output, "#' " + javadoc.replaceAll(LINE_SEPARATOR, LINE_SEPARATOR+"#' "));
+					RJavaUtils.writeLine(output, "#' @note Documentation autogenerated from javadoc documentation.");
+				}
+				if (!isStatic && !isConstructor){
+					RJavaUtils.writeLine(output, "#' @note Parameter \\code{obj} is an rJava jobjRef of java type " + 
+							cannonicalTypeName + " to be operated on");
+					RJavaUtils.writeLine(output, "#' This may be, but is not required to be, an R S4 object of the same type");
+				}
 
-			RJavaUtils.writeLine(output, "#' @seealso \\link[" + typeName + "." + simpleName + ":../java/javadoc/" + filename.replace('.', File.separatorChar) + "]{javadoc api for the containing class}");
-
+				//RJavaUtils.writeLine(output, "#' @seealso \\link[" + execElem.getEnclosingElement().toString() + "." + simpleName + ":../java/javadoc/" + execElem.getEnclosingElement().toString().replace('.', File.separatorChar) + "]{javadoc api for the containing class}");
+				RJavaUtils.writeLine(output, "#' @seealso java library documention for " + execElem.getEnclosingElement().toString() + "#" + simpleName + "");
+			}
 			RJavaUtils.writeLine(output, "#' @rdname "+rName); 
 			// Export the appropriate symbols for non-methods
 			// Methods are handled below
 			if (isStatic) { 
-				RJavaUtils.writeLine(output, "#' @export " + rQualifiedName);
+				RJavaUtils.writeLine(output, "#' @export " + rQualifiedName+"");
 			} else if (isConstructor) {
-				RJavaUtils.writeLine(output, "#' @export " + rQualifiedName);
+				RJavaUtils.writeLine(output, "#' @export " + rQualifiedName+"");
 			} //TODO Maybe these should be handled with the exports?  
 			else if (this.useS4Methods) {
-				RJavaUtils.writeLine(output, "#' @exportMethod " + rName);
+				RJavaUtils.writeLine(output, "#' @exportMethod " + rName+"");
 			} else {
-				RJavaUtils.writeLine(output, "#' @S3method " + rName + " " + typeName);
-				RJavaUtils.writeLine(output, "#' @export " + rQualifiedName);
+				RJavaUtils.writeLine(output, "#' @S3method " + rName + " " + typeName+"");
+				RJavaUtils.writeLine(output, "#' @export " + rQualifiedName+"");
 			}
 
 			// Assign to the qualified name, even if you later expose something else
-			RJavaUtils.write(output, rQualifiedName + " <- function(");
+			RJavaUtils.write(output, "`"+rQualifiedName + "` <- function(");
 
 			if ((!isStatic) && (!isConstructor)) {
 				RJavaUtils.write(output, "obj"); // Explicitly pass "self" obj to methods
@@ -483,6 +509,8 @@ public class AnnotateRProcessor extends AbstractProcessor
 					RJavaUtils.writeLine(output, ", ");
 				}
 				RJavaUtils.writeLine(output, "" + LINE_SEPARATOR + "### object of type " + cannonicalTypeName + " to be operated on");
+			}else if (execElem.getParameters().size() > 0) {
+				RJavaUtils.writeLine(output, "");
 			}
 
 			writeParameters(execElem.getParameters(), output);
@@ -494,13 +522,15 @@ public class AnnotateRProcessor extends AbstractProcessor
 			if (!rCode.equals("[default]")) {
 				RJavaUtils.writeLine(output, "\t" + rCode);
 			}else {
-				String rArgs = annotation.rArgs();
-				if (!rArgs.equals("[default]")) {
-					RJavaUtils.writeLine(output, "\t" + rArgs);
+				String preCall = annotation.rBefore();
+				if (!preCall.equals("[default]")) {
+					RJavaUtils.writeLine(output, "\t" + preCall);
 				}
 				RJavaUtils.write(output, "\tjreturnobj <- ");
 
-				String returnTypeStr = RJavaUtils.typeToRAbbreviation(returnType, true);
+				String returnTypeStr = RJavaUtils.typeToRAbbreviation(
+						execElem.getReturnType(), 
+						true);
 
 				if (isConstructor) {
 					RJavaUtils.write(output, ".jnew(\"" + cannonicalTypeName + "\"");
@@ -525,7 +555,8 @@ public class AnnotateRProcessor extends AbstractProcessor
 				writeParameters(execElem.getParameters(), output);
 				RJavaUtils.writeLine(output, ")"); // end jcall/jnew
 
-				createWrapperObject("jreturnobj","returnobj", returnType, output);
+				createWrapperObject(output, execElem, returnType,
+						"jreturnobj","returnobj");
 
 				String rReturn = annotation.rReturn();
 				if (!rReturn.equals("[default]")) {
@@ -543,22 +574,21 @@ public class AnnotateRProcessor extends AbstractProcessor
 				{
 					this.mExportedGenerics.add(rName);
 					RJavaUtils.writeLine(output, "#' @export"); 
-					RJavaUtils.writeLine(output, "#' @rdname "+rName); 
-					RJavaUtils.writeLine(output, "setMethod(" + rName + ", " + 
-							"\""+cannonicalTypeName + "\""+ 
-							", "+ rQualifiedName +")");
+					RJavaUtils.writeLine(output, "#' @rdname "+rName+""); 
+					RJavaUtils.writeLine(output, "setMethod(\"" + rName + "\", " + 
+							"\""+callerType.toString() + "\""+ 
+							", `"+ rQualifiedName +"`)");
 				}
 				else
 				{ 
 					if (!this.mExportedGenerics.contains(rName)){
 						RJavaUtils.writeLine(output, "#' @export");
-						RJavaUtils.writeLine(output, "#' @rdname "+rName); 
-						RJavaUtils.writeLine(output, rName + " <- function(jself,...) {" +
+						RJavaUtils.writeLine(output, "#' @rdname "+rName+""); 
+						RJavaUtils.writeLine(output, "`"+rName + "` <- function(jself,...) {" +
 								LINE_SEPARATOR + "\t UseMethod(\"" + rName + "\")}");
 						this.mExportedGenerics.add(rName);
 					}
 				}
-
 			}
 
 			RJavaUtils.writeLine(output, "");
@@ -588,6 +618,7 @@ public class AnnotateRProcessor extends AbstractProcessor
 			//Must explicitly cast R objects to REXP references in java
 			if (type.toString().equals("org.rosuda.REngine.REXP")) {
 				try {
+					RJavaUtils.writeLine(output, this.INDENT + ".jengine(TRUE)");
 					RJavaUtils.writeLine(output, 
 							this.INDENT + parameter.getSimpleName() + 
 							" <- .jcast(toJava(" + parameter.getSimpleName() + ")"+
@@ -606,17 +637,25 @@ public class AnnotateRProcessor extends AbstractProcessor
 	 * @param output
 	 * @throws IOException
 	 */
-	private void createWrapperObject(String jobjName,String robjName, TypeMirror javaType, Writer output) throws IOException {
+	private void createWrapperObject(Writer output, ExecutableElement execElem,
+			TypeMirror javaType, String jobjName,String robjName) throws IOException {
 		logger.debug("Wrapping object type: " + javaType.toString());
-		if (RJavaUtils.canCastAsPrimitive(javaType)) {
+		TypeMirror elemReturnType = execElem.getReturnType();
+		if (execElem.getKind()!= ElementKind.CONSTRUCTOR && 
+				RJavaUtils.isRjavaPrimitive(elemReturnType)) {
 			logger.debug("Casting as a primitive");
 			RJavaUtils.writeLine(output, "\t" + robjName + "<-" + jobjName);
-		} else if (!(javaType instanceof DeclaredType)) {
+		}else if (RJavaUtils.canConvertToPrimitive(
+				this.mTypes.asElement(javaType))){
+			logger.debug("Can convert to a primitive");
+			RJavaUtils.convertToPrimitive(output, this.mTypes.asElement(javaType),
+					jobjName, robjName);
+		}else if (!(javaType instanceof DeclaredType)) {
 			logger.debug("Not a DeclaredType");
 			RJavaUtils.writeLine(output, "\t" + robjName + "<-" + jobjName);
 		} else {
 			TypeElement javaTypeElement = (TypeElement) this.mTypes.asElement(javaType);
-			if (this.mExportedTypes.contains(javaType)){
+			if (this.mTypesToExport.contains(javaType)){
 				if (useS4Methods){
 					// Export the classes and the inheritance chain at the end, so you don't have to pollute the 
 					// inheritance chain and the namespace
@@ -635,7 +674,7 @@ public class AnnotateRProcessor extends AbstractProcessor
 						TypeElement nextTypeElement = (TypeElement) this.mTypes.asElement(next);
 						if (!visited.contains(next)) {
 							// Only add S3 classes that are used
-							if (this.mExportedTypes.contains(nextTypeElement)){
+							if (this.mTypesToExport.contains(nextTypeElement)){
 								RJavaUtils.write(output, ",\"" + next.toString() + "\"");
 							}
 							parents.addAll(this.mTypes.directSupertypes(next));
@@ -665,8 +704,8 @@ public class AnnotateRProcessor extends AbstractProcessor
 	}
 
 	private void writeParameters(Collection<? extends VariableElement> parameters, 
-				Writer output) throws IOException
-	{
+			Writer output) throws IOException
+			{
 		Iterator<? extends VariableElement> paramIter = parameters.iterator();
 		while (paramIter.hasNext()) {
 			VariableElement parameter = paramIter.next();
@@ -677,7 +716,7 @@ public class AnnotateRProcessor extends AbstractProcessor
 				RJavaUtils.writeLine(output, "");
 			}
 		}
-	}
+			}
 
 	public void roundComplete()
 	{
@@ -694,7 +733,7 @@ public class AnnotateRProcessor extends AbstractProcessor
 			e.printStackTrace();
 		}
 		this.mInputOutputMap.clear();
-		this.mExportedTypes.clear();
+		this.mTypesToExport.clear();
 		this.mExportedGenerics.clear();
 		this.mExportedSymbols.clear();
 		this.mExportedClassMethods.clear();

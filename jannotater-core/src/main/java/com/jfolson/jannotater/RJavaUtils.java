@@ -2,6 +2,9 @@ package com.jfolson.jannotater;
 
 import java.io.IOException;
 import java.io.Writer;
+
+import javax.lang.model.element.Element;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.NoType;
 import javax.lang.model.type.PrimitiveType;
@@ -9,9 +12,13 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class RJavaUtils
 {
 	public static final String LINE_SEPARATOR = System.getProperty("line.separator");
+	final static Logger logger = LoggerFactory.getLogger("com.jfolson.jannotater");
 
 	public static void write(Writer output, String content) throws IOException
 	{
@@ -70,7 +77,103 @@ public class RJavaUtils
 		return typeString;
 	}
 
-	public static boolean canCastAsPrimitive(TypeMirror type) {
+	public static void convertToPrimitive(Writer output, Element type,
+			String fromObj, String toObj) throws IOException {
+		try{
+		//logger.debug("can cast: "+type.getSimpleName().toString()+"?");
+		String typeString = type.getSimpleName().toString().toUpperCase();
+		if (typeString.equals("CHARACTER")){
+			typeString = "CHAR";
+		}else if (typeString.equals("INTEGER")){
+			typeString = "INT";
+		}
+		TypeKind kind = TypeKind.valueOf(typeString);
+			switch (kind) {
+			case BOOLEAN:
+				RJavaUtils.writeLine(output, toObj + " <- .jcall(" +fromObj + 
+						", \"Z\", \"booleanValue\")");
+				return;
+			case BYTE:
+				RJavaUtils.writeLine(output, toObj + " <- .jcall(" +fromObj + 
+						", \"B\", \"byteValue\")");
+				return;
+			case CHAR:
+				RJavaUtils.writeLine(output, toObj + " <- .jcall(" +fromObj + 
+						", \"C\", \"charValue\")");
+				return;
+			case DOUBLE:
+				RJavaUtils.writeLine(output, toObj + " <- .jcall(" +fromObj + 
+						", \"D\", \"doubleValue\")");
+				return;
+			case FLOAT:
+				RJavaUtils.writeLine(output, toObj + " <- .jcall(" +fromObj + 
+						", \"F\", \"floatValue\")");
+				return ;
+			case INT:
+				RJavaUtils.writeLine(output, toObj + " <- .jcall(" +fromObj + 
+						", \"I\", \"intValue\")");
+				return ;
+			case LONG:
+				RJavaUtils.writeLine(output, toObj + " <- .jcall(" +fromObj + 
+						", \"J\", \"longValue\")");
+				return ;
+			default:
+			}
+		}catch(IllegalArgumentException e){
+			
+		}
+		if ((type instanceof NoType))
+			return;
+		if (type.toString().equals("java.lang.String")){
+			RJavaUtils.writeLine(output, toObj + " <- .jcall(" +fromObj + 
+					", \"S\", \"toString\")");
+		}
+			return;
+		/*if ((type instanceof ArrayType)) {
+			return isRjavaPrimitive(((ArrayType)type).getComponentType());
+		}*/
+	}
+	public static boolean canConvertToPrimitive(Element type) {
+		try{
+		//logger.debug("can cast: "+type.getSimpleName().toString()+"?");
+			String typeString = type.getSimpleName().toString().toUpperCase();
+			if (typeString.equals("CHARACTER")){
+				typeString = "CHAR";
+			}else if (typeString.equals("INTEGER")){
+				typeString = "INT";
+			}
+		TypeKind kind = TypeKind.valueOf(typeString);
+			switch (kind) {
+			case BOOLEAN:
+				return true;
+			case BYTE:
+				return true;
+			case CHAR:
+				return true;
+			case DOUBLE:
+				return true;
+			case FLOAT:
+				return true;
+			case INT:
+				return true;
+			case LONG:
+				return true;
+			default:
+			}
+		}catch(IllegalArgumentException e){
+			
+		}
+		if ((type instanceof NoType))
+			return false;
+		if (type.toString().equals("java.lang.String"))
+			return true;
+		/*if ((type instanceof ArrayType)) {
+			return isRjavaPrimitive(((ArrayType)type).getComponentType());
+		}*/
+		return false;
+	}
+
+	public static boolean isRjavaPrimitive(TypeMirror type) {
 		if ((type instanceof PrimitiveType)) {
 			switch (((PrimitiveType)type).getKind()) {
 			case BOOLEAN:
@@ -95,7 +198,7 @@ public class RJavaUtils
 		if (type.toString().equals("java.lang.String"))
 			return true;
 		if ((type instanceof ArrayType)) {
-			return canCastAsPrimitive(((ArrayType)type).getComponentType());
+			return isRjavaPrimitive(((ArrayType)type).getComponentType());
 		}
 		return false;
 	}

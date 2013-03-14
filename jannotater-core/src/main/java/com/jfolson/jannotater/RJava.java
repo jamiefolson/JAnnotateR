@@ -17,7 +17,7 @@ public @interface RJava
 
 	public String rCode() default "[default]";
 
-	public String rArgs() default "[default]";
+	public String rBefore() default "[default]";
 
 	public String rReturn() default "[default]";
 
