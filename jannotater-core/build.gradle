@@ -1,6 +1,10 @@
 apply plugin: 'java'
 apply plugin: 'maven'
-
+apply plugin: 'signing'
+description = """Core java utilities for developing building and building
+                   packages for rJava, the interface for using Java with R, a
+                   statistical programming language."""
+ 
 project.description = 'Java Annotations to R Project'
 project.targetCompatibility = 1.7
 project.sourceCompatibility = 1.7
@@ -15,5 +19,70 @@ dependencies {
   compile "org.slf4j:slf4j-api:1.7.2"
   compile "commons-io:commons-io:2.1"
   testCompile "org.testng:testng:5.14"
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from 'build/docs/javadoc'
+}
+ 
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allSource
+    classifier = 'sources'
+}
+
+artifacts {
+    archives jar
+    archives javadocJar
+    archives sourcesJar
+}
+
+signing {
+    sign configurations.archives
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signPom(deployment) }
+ 
+            repository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
+              authentication(userName: sonatypeUsername, password: sonatypePassword)
+            }
+ 
+            pom.project {
+               name project.name
+               packaging 'jar'
+               description project.description
+               url 'http://github.com/jamiefolson/JAnnotateR/' 
+ 
+               scm {
+                   url 'scm:git@github.com:jamiefolson/JAnnotateR.git'
+                   connection 'scm:git@github.com:jamiefolson/JAnnotateR.git'
+                   developerConnection 'scm:git@github.com:jamiefolson/JAnnotateR.git'
+               }
+ 
+               licenses {
+                   license {
+                       name 'The Apache Software License, Version 2.0'
+                       url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                       distribution 'repo'
+                   }
+               }
+ 
+               developers {
+                   developer {
+                       id 'jamiefolson'
+                       name 'Jamie F Olson'
+                   }
+               }
+           }
+        }
+    }
 }
 
