@@ -1,4 +1,3 @@
-//evaluationDependsOn(':gradle-plugin-jannotater')
 
 buildscript {
 	repositories {
@@ -6,17 +5,14 @@ buildscript {
 	  mavenCentral()
 	}
 	dependencies {
-		classpath project(":gradle-plugin-jannotater")
-		//classpath 'com.jfolson:gradle-plugin-jannotater:0.1-SNAPSHOT'
-		//classpath 'com.jfolson:gradle-plugin-r:0.1-SNAPSHOT'
+		classpath 'com.jfolson:gradle-plugin-jannotater:0.2'
 	}
 }
   
 apply plugin: 'java'
 apply plugin: 'rjava'
-//apply plugin: 'rpackage'
 
-version = "0.1"
+version = "0.2"
 repositories {
     mavenCentral()
     mavenLocal()
@@ -24,8 +20,8 @@ repositories {
 }
 
 dependencies {
-    compile project(":jannotater-core")//'com.jfolson:jannotater-core:0.1-SNAPSHOT'
-    rjava(project(":jannotater-test")){ transitive = true }
+    compile 'com.jfolson:jannotater-rjava:0.2'
+    rjava(project){ transitive = true }
 	compile "org.rosuda.JRI:JRIEngine:0.9-3"
 	compile "org.rosuda.JRI:JRI:0.9-3"
 	compile "org.rosuda.JRI:REngine:0.9-3"

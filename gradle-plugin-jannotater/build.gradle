@@ -9,9 +9,9 @@ description = """Gradle plugin for developing building and building
 
 dependencies {
     compile gradleApi()
-    compile project(":jannotater-core")
-    compile 'com.jfolson:gradle-plugin-r:0.1-SNAPSHOT'
-    groovy 'com.jfolson:gradle-plugin-r:0.1-SNAPSHOT'
+    compile project(":jannotater-rjava")
+    groovy 'com.jfolson:gradle-plugin-r:0.2'
+    runtime 'com.jfolson:gradle-plugin-r:0.2'
     groovy localGroovy()
 }
 

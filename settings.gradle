@@ -1,1 +1,1 @@
-include 'jannotater-core', 'gradle-plugin-jannotater', 'jannotater-test'
+include 'jannotater-rjava', 'gradle-plugin-jannotater'
