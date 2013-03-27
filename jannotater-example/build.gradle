@@ -5,7 +5,7 @@ buildscript {
 	  mavenCentral()
 	}
 	dependencies {
-		classpath 'com.jfolson:gradle-plugin-jannotater:0.2'
+		classpath 'com.jfolson:gradle-plugin-jannotater:0.1'
 	}
 }
   
@@ -20,7 +20,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.jfolson:jannotater-rjava:0.2'
+    compile 'com.jfolson:jannotater-rjava:0.1'
     rjava(project){ transitive = true }
 	compile "org.rosuda.JRI:JRIEngine:0.9-3"
 	compile "org.rosuda.JRI:JRI:0.9-3"
