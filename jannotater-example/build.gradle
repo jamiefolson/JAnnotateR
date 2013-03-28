@@ -32,3 +32,7 @@ rpackage {
   name = 'HelloWorld'
 }
 
+project.configurations.rjava.dependencies.each {dep ->
+println dep}
+println project.configurations.compile.dependencies
+
