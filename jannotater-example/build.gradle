@@ -5,14 +5,14 @@ buildscript {
 	  mavenCentral()
 	}
 	dependencies {
-		classpath 'com.jfolson:gradle-plugin-jannotater:0.1'
+		classpath 'com.jfolson:gradle-plugin-rjava:0.1'
 	}
 }
   
 apply plugin: 'java'
 apply plugin: 'rjava'
 
-version = "0.2"
+version = "0.1"
 repositories {
     mavenCentral()
     mavenLocal()
