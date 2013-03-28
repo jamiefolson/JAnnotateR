@@ -22,6 +22,9 @@ class RJavaPlugin implements Plugin<Project> {
 	if (project.configurations.findByName("rjava")==null){
 		project.configurations.add("rjava")
 	}
+    project.dependencies {
+        rjava "com.jfolson:gradle-plugin-rjava:0.1"
+    }
     //project.extensions.create("rjava",RJavaPluginExtension.class)
 	project.task("downloadJars", type:Copy){
 		project.afterEvaluate {
@@ -41,7 +44,9 @@ class RJavaPlugin implements Plugin<Project> {
 		dependsOn :project.copyRPackageSource) {
 		project.afterEvaluate {
 			source = project.sourceSets.main.java
-			classpath = project.configurations.compile
+            classpath = project.files(
+                    project.configurations.rjava,
+                    project.configurations.compile)
 			destinationDir = project.rpackage.buildDir
 		}
 		options.compilerArgs = ["-processor",
