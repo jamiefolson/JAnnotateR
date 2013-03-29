@@ -20,11 +20,7 @@ repositories {
 }
 
 dependencies {
-<<<<<<< HEAD
     compile 'com.jfolson:rjava-annotations:0.1'
-=======
-    compile 'com.jfolson:jannotater-rjava:0.1'
->>>>>>> b6b581701be0ddfe7be362c5f26c91aa019e22d8
     rjava(project){ transitive = true }
 	compile "org.rosuda.JRI:JRIEngine:0.9-3"
 	compile "org.rosuda.JRI:JRI:0.9-3"
