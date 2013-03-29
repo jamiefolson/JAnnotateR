@@ -1,1 +1,1 @@
-include 'jannotater-rjava', 'gradle-plugin-rjava'
+include 'rjava-annotations', 'gradle-plugin-rjava'

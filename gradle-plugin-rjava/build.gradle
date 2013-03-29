@@ -14,7 +14,7 @@ project.sourceCompatibility = 1.6
 dependencies {
     compile gradleApi()
     groovy localGroovy()
-    compile project(":jannotater-rjava")
+    compile project(":rjava-annotations")
     groovy 'com.jfolson:gradle-plugin-r:0.1'
     runtime 'com.jfolson:gradle-plugin-r:0.1'
 }

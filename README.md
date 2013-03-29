@@ -8,7 +8,7 @@ map onto the java class hierarchy simply by annotating the java source code.
 
 There are three subprojects here:
 
-* `jannotater-rjava` contains the definition of the `@RJava` annotation as well as the annotation processor.
+* `rjava-annotations` contains the definition of the `@RJava` annotation as well as the annotation processor.
 * `gradle-plugin-rjava` contains a gradle plugin to simplify the generation of R packages from annotationions.
 * `jannotater-example` contains an example of java code properly annotated and built with the gradle plugin into an R package.
 
@@ -36,7 +36,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.jfolson:jannotater-rjava:0.1'
+    compile 'com.jfolson:rjava-annotations:0.1'
     rjava(project){ transitive = true }
 	compile "org.rosuda.JRI:JRIEngine:0.9-3"
 	compile "org.rosuda.JRI:JRI:0.9-3"
